@@ -597,7 +597,7 @@ Please change the quantity done or the rounding precision of your unit of measur
                         mls_without_lots -= move_line
                     else:  # No line without serial number, creates a new one.
                         reserved_quants = self.env['stock.quant']._get_reserve_quantity(move.product_id, move.location_id, 1.0, lot_id=lot)
-                        if reserved_quants:
+                        if reserved_quants and reserved_quants[0][0].lot_id:
                             move_line_vals = self._prepare_move_line_vals(quantity=0, reserved_quant=reserved_quants[0][0])
                         else:
                             move_line_vals = self._prepare_move_line_vals(quantity=0)
@@ -2077,7 +2077,12 @@ Please change the quantity done or the rounding precision of your unit of measur
                 .move_line_ids.filtered(lambda ml: ml.picked).mapped('result_package_id')\
                 .filtered(lambda p: p.quant_ids and len(p.quant_ids) > 1):
             if len(result_package.quant_ids.filtered(lambda q: float_compare(q.quantity, 0.0, precision_rounding=q.product_uom_id.rounding) > 0).mapped('location_id')) > 1:
-                raise UserError(_('You cannot move the same package content more than once in the same transfer or split the same package into two location.'))
+                error_msg = _(
+                    'You cannot move the same package content more than once in the same transfer'
+                    ' or split the same package into two location.'
+                )
+                package_msg = _("\nPackage: %s", result_package.name)
+                raise UserError(error_msg + package_msg)
         if any(ml.package_id and ml.package_id == ml.result_package_id for ml in moves_todo.move_line_ids):
             self.env['stock.quant']._unlink_zero_quants()
         picking = moves_todo.mapped('picking_id')
@@ -2253,6 +2258,13 @@ Please change the quantity done or the rounding precision of your unit of measur
             return result
         else:
             return []
+
+    def _get_report_description_picking(self):
+        self.ensure_one()
+        description = self.description_picking or ""
+        if description.startswith(self.product_id.display_name):
+            description = description.removeprefix(self.product_id.display_name).strip()
+        return description
 
     def _set_quantity_done_prepare_vals(self, qty):
         def _move_qty(qty):

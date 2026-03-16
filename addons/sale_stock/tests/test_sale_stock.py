@@ -7,6 +7,7 @@ from odoo.addons.stock_account.tests.test_anglo_saxon_valuation_reconciliation_c
 from odoo.addons.sale_stock.tests.common import TestSaleStockCommon
 from odoo.exceptions import RedirectWarning, UserError
 from odoo.tests import Form, tagged
+from odoo.tests.common import new_test_user
 
 
 @tagged('post_install', '-at_install')
@@ -2597,3 +2598,74 @@ class TestSaleStock(TestSaleStockCommon, ValuationReconciliationTestCommon):
         delivery.sale_id = sale_order
         self.assertEqual(delivery.group_id.sale_id, sale_order)
         self.assertEqual(delivery.move_ids.group_id, delivery.group_id)
+
+    def test_compute_sale_order_count_with_stock_user(self):
+        """Test that `sale_order_count` only counts sale orders
+        accessible to the current stock user.
+
+        A stock user can compute `sale_order_count` for a serial number,
+        but the result only includes sale orders that the user has
+        read access to (i.e. their own sale orders in this scenario).
+        """
+        user = new_test_user(self.env, login='fgh',
+                             groups='base.group_user,stock.group_stock_user, sales_team.group_sale_salesman')
+        self.new_product.tracking = 'lot'
+        lot = self.env['stock.lot'].create({
+            'name': 'SN001',
+            'product_id': self.new_product.id,
+        })
+        self.env['stock.quant']._update_available_quantity(self.new_product, self.company_data['default_warehouse'].lot_stock_id, 2, lot_id=lot)
+        sale_order = self.env['sale.order'].create({
+            'partner_id': self.partner_a.id,
+            'order_line': [Command.create({
+                'product_id': self.new_product.id,
+                'product_uom_qty': 1.0,
+            })],
+        })
+        sale_order.action_confirm()
+        sale_order.picking_ids.button_validate()
+        self.assertEqual(sale_order.picking_ids.state, 'done')
+        self.assertEqual(lot.with_user(user).sale_order_count, 0)
+        sale_order_2 = self.env['sale.order'].with_user(user).create({
+            'partner_id': self.partner_a.id,
+            'order_line': [Command.create({
+                'product_id': self.new_product.id,
+                'product_uom_qty': 1.0,
+            })],
+        })
+        sale_order_2.action_confirm()
+        sale_order_2.picking_ids.button_validate()
+        self.assertEqual(sale_order_2.picking_ids.state, 'done')
+        lot.invalidate_recordset()
+        self.assertEqual(lot.with_user(user).sale_order_count, 1)
+        self.assertEqual(lot.with_user(user).sale_order_ids, sale_order_2)
+
+    def test_validate_picking_creates_sale_line_for_so_with_no_sol(self):
+        """Test that validating a picking creates a sale order line for a sale order with no lines"""
+        warehouse = self.company_data['default_warehouse']
+        sale_order = self.env['sale.order'].create({
+            'partner_id': self.partner_a.id
+        })
+        sale_order.action_confirm()
+        self.assertFalse(sale_order.order_line)
+
+        delivery = self.env['stock.picking'].create({
+            'picking_type_id': warehouse.out_type_id.id,
+            'sale_id': sale_order.id,
+            'move_ids': [
+                Command.create({
+                    'name': 'test_out_1',
+                    'product_id': self.new_product.id,
+                    'product_uom_qty': 3,
+                }),
+            ],
+        })
+        delivery.button_validate()
+
+        self.assertEqual(delivery.state, 'done')
+        self.assertRecordValues(delivery.move_ids, [
+            {'product_id': self.new_product.id, 'sale_line_id': sale_order.order_line.id}
+        ])
+        self.assertRecordValues(sale_order.order_line, [
+            {'product_id': self.new_product.id, 'product_uom_qty': 0, 'qty_delivered': 3}
+        ])
