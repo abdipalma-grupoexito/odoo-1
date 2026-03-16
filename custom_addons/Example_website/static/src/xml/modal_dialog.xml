@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<template xml:space="preserve">
+    <!-- Modal Content -->
+    <t t-name="Example_website.my_modal_template">
+        <div calss="o_dialog_container">
+            <div class="modal-dialog">
+                <div clas="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Ventana modal</h4>
+                        <button type="button" class="btn-close" t-on-click="props.close"/>
+                    </div>
+                    <div class="modal-body">
+                        <h4 class="modal-body"> Aqui va el contenido del modal</h4>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" t-on-click="props.close">Cancel</button>
+                        <button class="btn btn-primary" t-on-click="confirm">Confirm</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</template>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+    <data>
+        <template id="custom_cart_lines" inherit_id="web.frontend_layout" name="Custom Cart Lines">
+            <div>
+                <h1>llamando al template de productos</h1>
+                <t t-call="website_sale.cart_lines"/>
+            </div>
+<!--            <xpath expr="//div[@id='cart_products']" position="after">
+&lt;!&ndash;                <t t-set="no_header" t-value="true"/>
+                <t t-set="no_footer" t-value="true"/>&ndash;&gt;
+                <h4>Se esta agregando código en es ta sección</h4>
+            </xpath>-->
+        </template>
+    </data>
+</odoo>

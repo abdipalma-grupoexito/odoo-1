@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+    <record id="action_open_my_modal" model="ir.actions.client">
+        <field name="name">Open my modal</field>
+        <field name="tag">Example_website.modal_dialog</field>
+    </record>
+
+    <menuitem id="menu_open_my_modal"
+              name="My Modal"
+              action="action_open_my_modal"
+              sequence="10"/>
+</odoo>
